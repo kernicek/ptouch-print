@@ -54,6 +54,10 @@ char *save_png = NULL;
 int verbose = 0;
 int fontsize = 0;
 bool debug = false;
+bool final_cut = false; /* cut after the trailing (non---cut) content? default
+                            no - hold it uncut so the next print job's
+                            content continues on the same tape with no
+                            wasted feed-to-cutter margin in between. */
 
 /* --------------------------------------------------------------------
    -------------------------------------------------------------------- */
@@ -437,6 +441,7 @@ void usage(char *progname)
 	printf("\t--text <text>\t\tPrint 1-4 lines of text.\n");
 	printf("\t\t\t\tIf the text contains spaces, use quotation marks\n\t\t\t\taround it.\n");
 	printf("\t--cutmark\t\tPrint a mark where the tape should be cut\n");
+	printf("\t--final-cut\t\tCut after the trailing content too (default:\n\t\t\t\tfeed but don't cut, so the next invocation's\n\t\t\t\tprint continues on the same held tape with no\n\t\t\t\twasted feed-to-cutter margin in between)\n");
 	printf("\t--pad <n>\t\tAdd n pixels padding (blank tape)\n");
 	printf("other commands:\n");
 	printf("\t--version\t\tshow version info (required for bug report)\n");
@@ -490,6 +495,10 @@ int parse_args(int argc, char **argv)
 			}
 		}
 		else if (strcmp(&argv[i][1], "-cutmark") == 0)
+		{
+			continue; /* not done here */
+		}
+		else if (strcmp(&argv[i][1], "-final-cut") == 0)
 		{
 			continue; /* not done here */
 		}
@@ -680,6 +689,10 @@ int main(int argc, char *argv[])
 			gdImageDestroy(im);
 			im = NULL;
 		}
+		else if (strcmp(&argv[i][1], "-final-cut") == 0)
+		{
+			final_cut = true;
+		}
 		else if (strcmp(&argv[i][1], "-debug") == 0)
 		{
 			debug = true;
@@ -699,9 +712,17 @@ int main(int argc, char *argv[])
 		{
 			// ptouch_page_flags(ptdev, (1 << 6));
 			print_img(ptdev, out);
-			if (ptouch_eject(ptdev) != 0)
+			if (final_cut)
 			{
-				printf(_("ptouch_eject() failed\n"));
+				if (ptouch_eject(ptdev) != 0)
+				{
+					printf(_("ptouch_eject() failed\n"));
+					return -1;
+				}
+			}
+			else if (ptouch_ff(ptdev) != 0)
+			{
+				printf(_("ptouch_ff() failed\n"));
 				return -1;
 			}
 		}

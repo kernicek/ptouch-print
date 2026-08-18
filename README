@@ -25,3 +25,36 @@ Note:
 Dear visitor, currently I have absolutely no time for improvements on this
 project (my free time currently is about one or two hours PER MONTH).
 Therefore, I can not look at suggestions about improvements.
+
+Fork notes (kernicek/ptouch-print):
+-----------------------------------
+
+Forked from https://github.com/enachb/ptouch-print (`upstream` remote) to
+drive a PT-P710BT for batch label printing.
+
+Stock ptouch-print always auto-cuts the tape (ptouch_eject()) at the end of
+every invocation, even though everything given to one invocation (multiple
+--image/--cutmark) already prints as a single continuous job. That's fine
+for one label, but printing several labels as SEPARATE ptouch-print calls
+(e.g. one per run of a script, over time, rather than all batched into one
+command) meant every single call fed and cut its own tape, wasting a
+feed-to-cutter margin of tape on every call.
+
+Added `--final-cut`: printing now defaults to feed-without-cut
+(ptouch_ff()) at the end instead of always cutting, so the tape stays
+attached to the roll and the *next* ptouch-print invocation's content
+prints immediately after it with zero wasted margin in between. Pass
+`--final-cut` when you actually want to cut the tape free.
+
+Build note: the po/ (gettext translations) subdirectory's generated
+Makefile has no `all` target with this repo's autotools setup on a current
+Fedora toolchain, so `./autogen.sh && ./configure && make` fails in `po/`.
+Not needed for this fork's use case (no translations), so it's compiled
+directly instead of via the full autotools build:
+
+    gcc -O2 -Iinclude -I. -DHAVE_CONFIG_H -DLOCALEDIR='""' -include locale.h \
+      src/libptouch.c src/ptouch-print.c \
+      $(pkg-config --cflags --libs libusb-1.0 gdlib) \
+      -o ptouch-print
+
+(`./configure` still needs to have been run once, to generate `config.h`.)
